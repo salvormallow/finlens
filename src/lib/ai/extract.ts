@@ -105,7 +105,7 @@ export async function extractFinancialData(
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 4096,
+    max_tokens: 16384,
     temperature: 0,
     system: SYSTEM_PROMPT,
     messages: [
@@ -130,34 +130,88 @@ export async function extractFinancialData(
 // ─── Helpers ─────────────────────────────────────────────────────
 
 function parseJsonResponse(text: string): unknown {
-  // Try direct JSON parse first
-  try {
-    return JSON.parse(text);
-  } catch {
-    // Try stripping markdown code fences
-    const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-    if (fenceMatch) {
-      try {
-        return JSON.parse(fenceMatch[1]);
-      } catch {
-        // Fall through
-      }
-    }
-
-    // Try finding JSON object in the text
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        return JSON.parse(jsonMatch[0]);
-      } catch {
-        // Fall through
-      }
-    }
-
-    throw new Error(
-      `Failed to parse Claude response as JSON. Response starts with: ${text.slice(0, 200)}`
-    );
+  // Strip markdown code fences if present
+  let cleaned = text.trim();
+  if (cleaned.startsWith("```")) {
+    // Remove opening fence (```json or ```)
+    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "");
+    // Remove closing fence if present
+    cleaned = cleaned.replace(/\n?```\s*$/, "");
   }
+  cleaned = cleaned.trim();
+
+  // Try direct JSON parse
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Fall through to extraction
+  }
+
+  // Try finding the outermost JSON object
+  const firstBrace = cleaned.indexOf("{");
+  if (firstBrace !== -1) {
+    const jsonCandidate = cleaned.slice(firstBrace);
+    try {
+      return JSON.parse(jsonCandidate);
+    } catch {
+      // Response may be truncated — try to repair by closing open structures
+      const repaired = repairTruncatedJson(jsonCandidate);
+      if (repaired) {
+        try {
+          return JSON.parse(repaired);
+        } catch {
+          // Fall through
+        }
+      }
+    }
+  }
+
+  throw new Error(
+    `Failed to parse Claude response as JSON. Response starts with: ${text.slice(0, 200)}`
+  );
+}
+
+function repairTruncatedJson(text: string): string | null {
+  // Count unclosed brackets and braces to close them
+  let braces = 0;
+  let brackets = 0;
+  let inString = false;
+  let escape = false;
+
+  for (const ch of text) {
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") braces++;
+    else if (ch === "}") braces--;
+    else if (ch === "[") brackets++;
+    else if (ch === "]") brackets--;
+  }
+
+  if (braces <= 0 && brackets <= 0) return null; // not truncated
+
+  // Trim trailing partial tokens (incomplete strings, trailing commas)
+  let repaired = text.replace(/,\s*$/, "");
+  if (inString) repaired += '"';
+  // Remove trailing partial key-value if it ends mid-value
+  repaired = repaired.replace(/,\s*"[^"]*":\s*$/, "");
+  repaired = repaired.replace(/,\s*"[^"]*$/, "");
+
+  // Close open structures
+  for (let i = 0; i < brackets; i++) repaired += "]";
+  for (let i = 0; i < braces; i++) repaired += "}";
+
+  return repaired;
 }
 
 function validateExtractedData(data: unknown): ExtractedFinancialData {
