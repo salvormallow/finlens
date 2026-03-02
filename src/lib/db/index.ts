@@ -135,6 +135,20 @@ export async function initializeDatabase() {
     )
   `;
 
+  // Financial reports (AI narrative)
+  await sql`
+    CREATE TABLE IF NOT EXISTS financial_reports (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      report_type VARCHAR(20) NOT NULL DEFAULT 'monthly',
+      period_label VARCHAR(50) NOT NULL,
+      content TEXT NOT NULL,
+      data_hash VARCHAR(64) NOT NULL,
+      tone VARCHAR(20) NOT NULL DEFAULT 'concise',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
+
   // Phase 2 migration: add blob_url to documents
   await sql`
     ALTER TABLE documents

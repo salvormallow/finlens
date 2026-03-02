@@ -7,6 +7,8 @@ import { IncomeExpenseCard } from "@/components/dashboard/income-expense-card";
 import { AllocationCard } from "@/components/dashboard/allocation-card";
 import { CashFlowCard } from "@/components/dashboard/cash-flow-card";
 import { SpendingTrendsCard } from "@/components/dashboard/spending-trends-card";
+import { RecurringExpensesCard } from "@/components/dashboard/recurring-expenses-card";
+import { ForecastCard } from "@/components/dashboard/forecast-card";
 import { HoldingsTable } from "@/components/dashboard/holdings-table";
 import { TransactionTable } from "@/components/dashboard/transaction-table";
 import { PeriodSelector } from "@/components/dashboard/period-selector";
@@ -176,6 +178,11 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* Cash Flow Forecast */}
+      <div className="animate-fade-up [animation-delay:150ms]">
+        <ForecastCard />
+      </div>
+
       {/* Charts Row 1 */}
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-3 animate-fade-up [animation-delay:200ms]">
         <NetWorthCard data={data.netWorthTrend} />
@@ -279,13 +286,18 @@ export default function DashboardPage() {
       <SpendingTrendsCard period={period} />
       </div>
 
-      {/* Portfolio Holdings */}
+      {/* Recurring Expenses */}
       <div className="animate-fade-up [animation-delay:600ms]">
+      <RecurringExpensesCard />
+      </div>
+
+      {/* Portfolio Holdings */}
+      <div className="animate-fade-up [animation-delay:700ms]">
       <HoldingsTable />
       </div>
 
       {/* Transaction Detail Table */}
-      <div className="animate-fade-up [animation-delay:700ms]">
+      <div className="animate-fade-up [animation-delay:800ms]">
       <TransactionTable
         period={period}
         initialFilter={drillDown}

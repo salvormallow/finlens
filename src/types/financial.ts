@@ -347,6 +347,45 @@ export interface SpendingTrendsResponse {
   months: string[];
 }
 
+// --- Forecast Types ---
+
+export interface ForecastPoint {
+  date: string;
+  projected: number;
+  high: number;
+  low: number;
+}
+
+export interface LowBalanceWarning {
+  date: string;
+  projected: number;
+}
+
+export interface ForecastResult {
+  points: ForecastPoint[];
+  startBalance: number;
+  endBalance: number;
+  totalExpectedIncome: number;
+  totalExpectedExpenses: number;
+  lowBalanceWarnings: LowBalanceWarning[];
+}
+
+export interface ForecastResponse extends ForecastResult {
+  insights: string | null;
+  horizon: number;
+}
+
+// --- Report Types ---
+
+export interface FinancialReport {
+  id: string;
+  reportType: string;
+  periodLabel: string;
+  content: string;
+  tone: "concise" | "detailed";
+  createdAt: string;
+}
+
 // --- Settings Types ---
 
 export interface UserDataStats {

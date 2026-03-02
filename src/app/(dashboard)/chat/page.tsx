@@ -4,20 +4,34 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { InlineChart } from "@/components/chat/inline-chart";
 import { Send, Bot, User, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+
+interface ChartConfig {
+  chartType: "bar" | "line" | "area" | "pie" | "stacked_bar";
+  title: string;
+  data: Record<string, string | number>[];
+  series: { key: string; color: string; label: string }[];
+}
+
+interface MessagePart {
+  type: "text" | "chart";
+  content?: string;
+  config?: ChartConfig;
+}
 
 interface Message {
   id: string;
   role: "user" | "assistant";
-  content: string;
+  parts: MessagePart[];
 }
 
 const SUGGESTED_QUESTIONS = [
+  "Show me my expenses by category as a pie chart",
+  "Chart my spending trends over the last 6 months",
+  "Compare my income vs expenses month by month",
   "What would happen if I maxed out my 401k?",
-  "Should I pay off my car loan early or invest?",
-  "How much house can I afford?",
-  "What's my projected retirement age at current savings rate?",
   "Where can I cut expenses the most?",
   "Am I on track for my financial goals?",
 ];
@@ -29,7 +43,6 @@ export default function ChatPage() {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
@@ -51,13 +64,13 @@ export default function ChatPage() {
               (m: { id: string; role: string; content: string }) => ({
                 id: m.id,
                 role: m.role as "user" | "assistant",
-                content: m.content,
+                parts: [{ type: "text" as const, content: m.content }],
               })
             )
           );
         }
       } catch {
-        // Silent fail — empty chat is fine
+        // Silent fail
       } finally {
         setHistoryLoaded(true);
       }
@@ -69,11 +82,10 @@ export default function ChatPage() {
     const messageText = (text || input).trim();
     if (!messageText || loading) return;
 
-    // Optimistically add user message
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: "user",
-      content: messageText,
+      parts: [{ type: "text", content: messageText }],
     };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
@@ -89,35 +101,128 @@ export default function ChatPage() {
       if (!response.ok) throw new Error("Chat request failed");
       if (!response.body) throw new Error("No response body");
 
-      // Create placeholder assistant message
       const assistantId = crypto.randomUUID();
       setMessages((prev) => [
         ...prev,
-        { id: assistantId, role: "assistant", content: "" },
+        { id: assistantId, role: "assistant", parts: [] },
       ]);
 
-      // Stream tokens into the assistant message
+      // Parse NDJSON stream
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? { ...m, content: m.content + chunk }
-              : m
-          )
-        );
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          try {
+            const event = JSON.parse(line);
+
+            if (event.type === "text") {
+              setMessages((prev) =>
+                prev.map((m) => {
+                  if (m.id !== assistantId) return m;
+                  const parts = [...m.parts];
+                  const lastPart = parts[parts.length - 1];
+                  if (lastPart?.type === "text") {
+                    parts[parts.length - 1] = {
+                      ...lastPart,
+                      content: (lastPart.content || "") + event.content,
+                    };
+                  } else {
+                    parts.push({ type: "text", content: event.content });
+                  }
+                  return { ...m, parts };
+                })
+              );
+            } else if (event.type === "chart") {
+              setMessages((prev) =>
+                prev.map((m) => {
+                  if (m.id !== assistantId) return m;
+                  return {
+                    ...m,
+                    parts: [
+                      ...m.parts,
+                      { type: "chart", config: event.config },
+                    ],
+                  };
+                })
+              );
+            }
+          } catch {
+            // If not valid JSON, treat as plain text (backwards compat)
+            setMessages((prev) =>
+              prev.map((m) => {
+                if (m.id !== assistantId) return m;
+                const parts = [...m.parts];
+                const lastPart = parts[parts.length - 1];
+                if (lastPart?.type === "text") {
+                  parts[parts.length - 1] = {
+                    ...lastPart,
+                    content: (lastPart.content || "") + line,
+                  };
+                } else {
+                  parts.push({ type: "text", content: line });
+                }
+                return { ...m, parts };
+              })
+            );
+          }
+        }
+      }
+
+      // Process remaining buffer
+      if (buffer.trim()) {
+        try {
+          const event = JSON.parse(buffer);
+          if (event.type === "text") {
+            setMessages((prev) =>
+              prev.map((m) => {
+                if (m.id !== assistantId) return m;
+                const parts = [...m.parts];
+                const lastPart = parts[parts.length - 1];
+                if (lastPart?.type === "text") {
+                  parts[parts.length - 1] = {
+                    ...lastPart,
+                    content: (lastPart.content || "") + event.content,
+                  };
+                } else {
+                  parts.push({ type: "text", content: event.content });
+                }
+                return { ...m, parts };
+              })
+            );
+          } else if (event.type === "chart") {
+            setMessages((prev) =>
+              prev.map((m) => {
+                if (m.id !== assistantId) return m;
+                return {
+                  ...m,
+                  parts: [
+                    ...m.parts,
+                    { type: "chart", config: event.config },
+                  ],
+                };
+              })
+            );
+          }
+        } catch {
+          // Ignore
+        }
       }
     } catch {
       toast.error("Failed to get response. Please try again.");
-      // Remove the empty assistant message if it was added
       setMessages((prev) => {
         const last = prev[prev.length - 1];
-        if (last?.role === "assistant" && !last.content) {
+        if (last?.role === "assistant" && last.parts.length === 0) {
           return prev.slice(0, -1);
         }
         return prev;
@@ -145,12 +250,17 @@ export default function ChatPage() {
     }
   };
 
-  // Show typing indicator when loading and no assistant message is being streamed yet
+  const hasContent = (msg: Message) =>
+    msg.parts.length > 0 &&
+    msg.parts.some(
+      (p) => (p.type === "text" && p.content) || p.type === "chart"
+    );
+
   const showTypingIndicator =
     loading &&
     (messages.length === 0 ||
       messages[messages.length - 1]?.role !== "assistant" ||
-      messages[messages.length - 1]?.content === "");
+      !hasContent(messages[messages.length - 1]));
 
   return (
     <div className="flex flex-col h-[calc(100vh-5rem)]">
@@ -169,7 +279,6 @@ export default function ChatPage() {
         )}
       </div>
 
-      {/* Messages Area */}
       <div className="flex-1 border border-border rounded-lg bg-card overflow-hidden flex flex-col">
         <ScrollArea className="flex-1 p-4">
           {!historyLoaded ? (
@@ -191,7 +300,8 @@ export default function ChatPage() {
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   I have context of all your uploaded financial data and can help
-                  with projections, comparisons, and what-if scenarios.
+                  with projections, comparisons, and what-if scenarios. Try
+                  asking me to chart your data!
                 </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg w-full">
@@ -221,17 +331,41 @@ export default function ChatPage() {
                     </div>
                   )}
                   <div
-                    className={`max-w-[80%] rounded-lg px-4 py-3 text-sm whitespace-pre-wrap ${
+                    className={`max-w-[80%] ${
                       message.role === "user"
-                        ? "bg-gradient-to-r from-indigo-500 to-indigo-400 text-white"
-                        : "bg-muted/80 backdrop-blur-sm"
+                        ? "rounded-lg px-4 py-3 text-sm bg-gradient-to-r from-indigo-500 to-indigo-400 text-white"
+                        : ""
                     }`}
                   >
-                    {message.content || (
-                      <div className="flex gap-1">
-                        <div className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" />
-                        <div className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.2s]" />
-                        <div className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.4s]" />
+                    {message.role === "user" ? (
+                      <span className="whitespace-pre-wrap">
+                        {message.parts
+                          .filter((p) => p.type === "text")
+                          .map((p) => p.content)
+                          .join("")}
+                      </span>
+                    ) : hasContent(message) ? (
+                      <div className="space-y-2">
+                        {message.parts.map((part, idx) =>
+                          part.type === "text" && part.content ? (
+                            <div
+                              key={idx}
+                              className="rounded-lg px-4 py-3 text-sm whitespace-pre-wrap bg-muted/80 backdrop-blur-sm"
+                            >
+                              {part.content}
+                            </div>
+                          ) : part.type === "chart" && part.config ? (
+                            <InlineChart key={idx} config={part.config} />
+                          ) : null
+                        )}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg px-4 py-3 bg-muted/80 backdrop-blur-sm">
+                        <div className="flex gap-1">
+                          <div className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" />
+                          <div className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.2s]" />
+                          <div className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.4s]" />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -242,33 +376,33 @@ export default function ChatPage() {
                   )}
                 </div>
               ))}
-              {showTypingIndicator && messages[messages.length - 1]?.role === "user" && (
-                <div className="flex gap-3">
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/20">
-                    <Bot className="h-4 w-4 text-white" />
-                  </div>
-                  <div className="bg-muted/80 backdrop-blur-sm rounded-lg px-4 py-3">
-                    <div className="flex gap-1">
-                      <div className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" />
-                      <div className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.2s]" />
-                      <div className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.4s]" />
+              {showTypingIndicator &&
+                messages[messages.length - 1]?.role === "user" && (
+                  <div className="flex gap-3">
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/20">
+                      <Bot className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="bg-muted/80 backdrop-blur-sm rounded-lg px-4 py-3">
+                      <div className="flex gap-1">
+                        <div className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" />
+                        <div className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.2s]" />
+                        <div className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.4s]" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
               <div ref={messagesEndRef} />
             </div>
           )}
         </ScrollArea>
 
-        {/* Input Area */}
         <div className="border-t border-border p-4">
           <div className="flex gap-2">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about your finances..."
+              placeholder="Ask about your finances or request a chart..."
               disabled={loading}
               className="flex-1"
             />

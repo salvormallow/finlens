@@ -19,6 +19,7 @@ import {
   Lightbulb,
   MessageSquare,
   Target,
+  FileBarChart,
   Settings,
   LogOut,
   TrendingUp,
@@ -54,6 +55,11 @@ const navItems = [
     title: "Goals",
     href: "/goals",
     icon: Target,
+  },
+  {
+    title: "Reports",
+    href: "/reports",
+    icon: FileBarChart,
   },
   {
     title: "Settings",

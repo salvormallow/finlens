@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/lib/auth";
 import { getDashboardData } from "@/lib/db/dashboard";
-import { getChatHistory, saveChatMessage, clearChatHistory } from "@/lib/db/chat";
+import {
+  getChatHistory,
+  saveChatMessage,
+  clearChatHistory,
+} from "@/lib/db/chat";
 import { buildFinancialContext } from "@/lib/ai/context";
+import { CHART_TOOLS, executeChartTool } from "@/lib/ai/chart-tools";
 
 export const maxDuration = 30;
 
@@ -28,10 +33,28 @@ GUIDELINES:
 - Format numbers as currency where appropriate ($1,234.56)
 - When giving specific financial advice, include a brief note that you're an AI assistant and not a licensed financial advisor
 
+CHART GENERATION:
+- When the user asks to "show", "chart", "graph", "visualize", "compare", or "plot" data, use the generate_chart tool.
+- Pick the best chart_type: bar for comparisons, line/area for trends over time, pie for proportions, stacked_bar for composition over time.
+- After generating a chart, provide a brief 1-2 sentence insight about what the chart shows.
+
 --- USER'S UPLOADED FINANCIAL DATA (may be incomplete) ---
 `;
 
-// POST — streaming chat response
+// Stream event types for NDJSON protocol
+interface TextEvent {
+  type: "text";
+  content: string;
+}
+
+interface ChartEvent {
+  type: "chart";
+  config: unknown;
+}
+
+type StreamEvent = TextEvent | ChartEvent;
+
+// POST — streaming chat response with tool-use support
 export async function POST(request: Request) {
   try {
     const session = await auth();
@@ -56,45 +79,106 @@ export async function POST(request: Request) {
     const financialContext = buildFinancialContext(dashboardData);
     const systemPrompt = SYSTEM_PROMPT_PREFIX + financialContext;
 
-    // 3. Load chat history (last 20 messages for context window)
+    // 3. Load chat history
     const history = await getChatHistory(session.user.id, 20);
-    const messages = history.map((m) => ({
+    const messages: Anthropic.Messages.MessageParam[] = history.map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
     }));
 
-    // 4. Stream response from Claude
-    const stream = anthropic.messages.stream({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2048,
-      temperature: 0.7,
-      system: systemPrompt,
-      messages,
-    });
-
-    // 5. Convert SDK stream to ReadableStream, collecting full text for DB persistence
-    const encoder = new TextEncoder();
-    let fullResponse = "";
-
     const userId = session.user.id;
+    const encoder = new TextEncoder();
+
+    // 4. Create NDJSON stream
     const readable = new ReadableStream({
       async start(controller) {
         try {
-          for await (const event of stream) {
-            if (
-              event.type === "content_block_delta" &&
-              event.delta.type === "text_delta"
-            ) {
-              const text = event.delta.text;
-              fullResponse += text;
-              controller.enqueue(encoder.encode(text));
+          let fullTextResponse = "";
+
+          const sendEvent = (event: StreamEvent) => {
+            controller.enqueue(
+              encoder.encode(JSON.stringify(event) + "\n")
+            );
+          };
+
+          // First API call (may include tool_use)
+          const response = await anthropic.messages.create({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 2048,
+            temperature: 0.7,
+            system: systemPrompt,
+            messages,
+            tools: CHART_TOOLS,
+          });
+
+          // Process content blocks
+          for (const block of response.content) {
+            if (block.type === "text" && block.text) {
+              sendEvent({ type: "text", content: block.text });
+              fullTextResponse += block.text;
+            } else if (block.type === "tool_use") {
+              // Execute the chart tool
+              try {
+                const chartConfig = await executeChartTool(
+                  block.input as Parameters<typeof executeChartTool>[0],
+                  userId
+                );
+                sendEvent({ type: "chart", config: chartConfig });
+
+                // Now get Claude's follow-up response after tool result
+                const followUp = await anthropic.messages.create({
+                  model: "claude-sonnet-4-20250514",
+                  max_tokens: 1024,
+                  temperature: 0.7,
+                  system: systemPrompt,
+                  messages: [
+                    ...messages,
+                    { role: "assistant", content: response.content },
+                    {
+                      role: "user",
+                      content: [
+                        {
+                          type: "tool_result",
+                          tool_use_id: block.id,
+                          content: JSON.stringify({
+                            success: true,
+                            chartType: chartConfig.chartType,
+                            dataPoints: chartConfig.data.length,
+                            series: chartConfig.series.map((s) => s.label),
+                          }),
+                        },
+                      ],
+                    },
+                  ],
+                  tools: CHART_TOOLS,
+                });
+
+                // Extract text from follow-up
+                for (const fb of followUp.content) {
+                  if (fb.type === "text" && fb.text) {
+                    sendEvent({ type: "text", content: fb.text });
+                    fullTextResponse += fb.text;
+                  }
+                }
+              } catch (toolError) {
+                console.error("Chart tool error:", toolError);
+                const errorMsg =
+                  "\n\nI tried to generate a chart but encountered an error. This may be due to insufficient data — try uploading more financial documents.";
+                sendEvent({ type: "text", content: errorMsg });
+                fullTextResponse += errorMsg;
+              }
             }
           }
+
           controller.close();
 
-          // Persist assistant response after stream completes
-          if (fullResponse.trim()) {
-            await saveChatMessage(userId, "assistant", fullResponse.trim());
+          // Persist assistant response
+          if (fullTextResponse.trim()) {
+            await saveChatMessage(
+              userId,
+              "assistant",
+              fullTextResponse.trim()
+            );
           }
         } catch (error) {
           console.error("Chat stream error:", error);
@@ -105,7 +189,7 @@ export async function POST(request: Request) {
 
     return new Response(readable, {
       headers: {
-        "Content-Type": "text/plain; charset=utf-8",
+        "Content-Type": "application/x-ndjson; charset=utf-8",
         "Cache-Control": "no-cache",
       },
     });
