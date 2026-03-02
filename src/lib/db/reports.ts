@@ -1,6 +1,25 @@
 import { sql } from "./index";
 import type { ReportTone } from "@/lib/ai/reports";
 
+let tableEnsured = false;
+
+async function ensureTable() {
+  if (tableEnsured) return;
+  await sql`
+    CREATE TABLE IF NOT EXISTS financial_reports (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      report_type VARCHAR(20) NOT NULL DEFAULT 'monthly',
+      period_label VARCHAR(50) NOT NULL,
+      content TEXT NOT NULL,
+      data_hash VARCHAR(64) NOT NULL,
+      tone VARCHAR(20) NOT NULL DEFAULT 'concise',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
+  tableEnsured = true;
+}
+
 export interface StoredReport {
   id: string;
   reportType: string;
@@ -18,6 +37,7 @@ export async function createReport(
   dataHash: string,
   tone: ReportTone
 ): Promise<StoredReport> {
+  await ensureTable();
   const result = await sql`
     INSERT INTO financial_reports (user_id, report_type, period_label, content, data_hash, tone)
     VALUES (${userId}, ${reportType}, ${periodLabel}, ${content}, ${dataHash}, ${tone})
@@ -39,6 +59,7 @@ export async function getReports(
   userId: string,
   limit = 10
 ): Promise<StoredReport[]> {
+  await ensureTable();
   const result = await sql`
     SELECT id, report_type, period_label, content, tone, created_at
     FROM financial_reports

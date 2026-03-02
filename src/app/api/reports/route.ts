@@ -5,6 +5,8 @@ import { createReport, getReports } from "@/lib/db/reports";
 import { getDashboardData } from "@/lib/db/dashboard";
 import { createHash } from "crypto";
 
+export const maxDuration = 30;
+
 export async function GET() {
   try {
     const session = await auth();

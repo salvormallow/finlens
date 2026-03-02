@@ -8,6 +8,8 @@ import {
 } from "@/lib/analysis/forecast";
 import { generateForecastInsights } from "@/lib/ai/forecast";
 
+export const maxDuration = 30;
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
