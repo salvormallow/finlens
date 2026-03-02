@@ -17,6 +17,24 @@ export function buildFinancialContext(data: DashboardData): string {
   const s = data.summary;
   const lines: string[] = [];
 
+  // Data coverage assessment
+  const gaps: string[] = [];
+  if (s.monthlyIncome === 0) gaps.push("No income data for the current month");
+  if (s.monthlyExpenses === 0) gaps.push("No expense data for the current month");
+  if (!data.taxOverview.hasData) gaps.push("No tax documents (W-2, 1099)");
+  if (data.portfolioAllocation.length === 0) gaps.push("No investment/portfolio data");
+  if (data.monthlyPnL.length < 3) gaps.push(`Only ${data.monthlyPnL.length} month(s) of transaction history`);
+  if (data.netWorthTrend.length < 3) gaps.push(`Only ${data.netWorthTrend.length} month(s) of net worth history`);
+
+  lines.push("--- DATA COVERAGE ---");
+  if (gaps.length > 0) {
+    lines.push(`GAPS (data NOT yet uploaded): ${gaps.join("; ")}`);
+    lines.push("Answers should account for these missing data points.");
+  } else {
+    lines.push("Data appears comprehensive across income, expenses, tax, and investments.");
+  }
+  lines.push("");
+
   // Snapshot
   lines.push("--- FINANCIAL SNAPSHOT ---");
   lines.push(

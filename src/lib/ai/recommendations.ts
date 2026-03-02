@@ -32,7 +32,9 @@ RULES:
 - Each recommendation must have 2-4 action items
 - Categories must match the enum exactly
 - If data is insufficient for a category, skip it — do not fabricate
-- Focus on practical, realistic advice grounded in the numbers`;
+- Focus on practical, realistic advice grounded in the numbers
+- IMPORTANT: Check the DATA COVERAGE section. If there are gaps (missing tax docs, limited months of data, no portfolio info), acknowledge these limitations in your recommendations. One recommendation should always be about uploading missing document types to get better analysis.
+- Do NOT assume $0 income or $0 expenses means the user has none — it likely means those documents haven't been uploaded yet`;
 
 export async function generateRecommendations(
   dashboardData: DashboardData
