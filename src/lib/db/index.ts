@@ -122,4 +122,15 @@ export async function initializeDatabase() {
     ALTER TABLE documents
     ADD COLUMN IF NOT EXISTS blob_url TEXT
   `;
+
+  // Phase 2b migration: add file_hash for duplicate detection
+  await sql`
+    ALTER TABLE documents
+    ADD COLUMN IF NOT EXISTS file_hash VARCHAR(64)
+  `;
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_user_file_hash
+    ON documents (user_id, file_hash)
+    WHERE file_hash IS NOT NULL
+  `;
 }

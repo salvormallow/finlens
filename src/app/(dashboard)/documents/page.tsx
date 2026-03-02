@@ -103,6 +103,11 @@ export default function DocumentsPage() {
 
       if (!uploadRes.ok) {
         const err = await uploadRes.json();
+        if (uploadRes.status === 409 && err.existingFileName) {
+          throw new Error(
+            `This file has already been uploaded as "${err.existingFileName}"`
+          );
+        }
         throw new Error(err.error || "Upload failed");
       }
 

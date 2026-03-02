@@ -67,6 +67,7 @@ export interface Document {
   document_type: DocumentType;
   file_name: string;
   blob_url: string | null;
+  file_hash: string | null;
   upload_date: Date;
   period_start: Date | null;
   period_end: Date | null;
@@ -215,4 +216,37 @@ export interface UploadedFile {
   uploadDate: Date;
   periodStart: Date | null;
   periodEnd: Date | null;
+}
+
+export interface CashFlowItem {
+  name: string;
+  value: number;
+}
+
+export interface TaxOverview {
+  estimatedLiability: number;
+  withholdingsYtd: number;
+  estimatedBalanceDue: number;
+  hasData: boolean;
+}
+
+export interface DashboardRecommendation {
+  priority: Priority;
+  text: string;
+}
+
+export interface DashboardData {
+  hasData: boolean;
+  summary: FinancialSummary;
+  summaryPriorMonth: {
+    netWorth: number;
+    monthlyIncome: number;
+    monthlyExpenses: number;
+  } | null;
+  netWorthTrend: NetWorthTrend[];
+  monthlyPnL: MonthlyPnL[];
+  portfolioAllocation: PortfolioAllocation[];
+  cashFlow: CashFlowItem[];
+  taxOverview: TaxOverview;
+  recommendations: DashboardRecommendation[];
 }

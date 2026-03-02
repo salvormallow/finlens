@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
+import { createHash } from "crypto";
 import { auth } from "@/lib/auth";
-import { createDocument } from "@/lib/db/documents";
+import { createDocument, getDocumentByHash } from "@/lib/db/documents";
 import type { DocumentType } from "@/types/financial";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -63,10 +64,29 @@ export async function POST(request: Request) {
       );
     }
 
+    // Compute SHA-256 hash of file contents
+    const arrayBuffer = await file.arrayBuffer();
+    const fileHash = createHash("sha256")
+      .update(Buffer.from(arrayBuffer))
+      .digest("hex");
+
+    // Check for duplicate
+    const existing = await getDocumentByHash(session.user.id, fileHash);
+    if (existing) {
+      return NextResponse.json(
+        {
+          error: "This file has already been uploaded",
+          existingDocumentId: existing.id,
+          existingFileName: existing.file_name,
+        },
+        { status: 409 }
+      );
+    }
+
     // Upload to Vercel Blob (temporary staging)
     const blob = await put(
       `staging/${session.user.id}/${Date.now()}-${file.name}`,
-      file,
+      new Blob([arrayBuffer], { type: file.type }),
       { access: "private" }
     );
 
@@ -76,6 +96,7 @@ export async function POST(request: Request) {
       documentType: documentType as DocumentType,
       fileName: file.name,
       blobUrl: blob.url,
+      fileHash,
     });
 
     return NextResponse.json({

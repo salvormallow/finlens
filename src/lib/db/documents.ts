@@ -16,13 +16,29 @@ export async function createDocument(params: {
   documentType: DocumentType;
   fileName: string;
   blobUrl: string;
+  fileHash: string;
 }): Promise<string> {
   const result = await sql`
-    INSERT INTO documents (user_id, document_type, file_name, blob_url, processing_status)
-    VALUES (${params.userId}, ${params.documentType}, ${params.fileName}, ${params.blobUrl}, 'pending')
+    INSERT INTO documents (user_id, document_type, file_name, blob_url, file_hash, processing_status)
+    VALUES (${params.userId}, ${params.documentType}, ${params.fileName}, ${params.blobUrl}, ${params.fileHash}, 'pending')
     RETURNING id
   `;
   return result.rows[0].id;
+}
+
+export async function getDocumentByHash(
+  userId: string,
+  fileHash: string
+): Promise<Document | null> {
+  const result = await sql`
+    SELECT id, user_id, document_type, file_name, blob_url, file_hash,
+           upload_date, period_start, period_end,
+           processing_status, error_message, created_at
+    FROM documents
+    WHERE user_id = ${userId} AND file_hash = ${fileHash}
+    LIMIT 1
+  `;
+  return (result.rows[0] as Document) ?? null;
 }
 
 export async function updateDocumentStatus(
@@ -66,7 +82,7 @@ export async function updateDocumentPeriod(
 
 export async function getDocumentsByUser(userId: string): Promise<Document[]> {
   const result = await sql`
-    SELECT id, user_id, document_type, file_name, blob_url,
+    SELECT id, user_id, document_type, file_name, blob_url, file_hash,
            upload_date, period_start, period_end,
            processing_status, error_message, created_at
     FROM documents
@@ -81,7 +97,7 @@ export async function getDocumentById(
   userId: string
 ): Promise<Document | null> {
   const result = await sql`
-    SELECT id, user_id, document_type, file_name, blob_url,
+    SELECT id, user_id, document_type, file_name, blob_url, file_hash,
            upload_date, period_start, period_end,
            processing_status, error_message, created_at
     FROM documents
