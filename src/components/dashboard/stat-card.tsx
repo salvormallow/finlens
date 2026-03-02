@@ -29,10 +29,10 @@ export function StatCard({
 }: StatCardProps) {
   if (loading) {
     return (
-      <Card className={className}>
+      <Card className={cn("group", className)}>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-4 rounded" />
+          <Skeleton className="h-9 w-9 rounded-lg" />
         </CardHeader>
         <CardContent>
           <Skeleton className="h-8 w-32 mb-1" />
@@ -43,21 +43,23 @@ export function StatCard({
   }
 
   return (
-    <Card className={className}>
+    <Card className={cn("group hover:shadow-xl hover:shadow-primary/5 transition-all duration-300", className)}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}
         </CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center transition-colors group-hover:bg-primary/15">
+          <Icon className="h-4 w-4 text-primary" />
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-2xl font-bold tracking-tight">{value}</div>
         {trend && (
           <p className="text-xs text-muted-foreground mt-1">
             <span
               className={cn(
                 "font-medium",
-                trend.value >= 0 ? "text-emerald-500" : "text-red-500"
+                trend.value >= 0 ? "text-emerald-400" : "text-red-400"
               )}
             >
               {trend.value >= 0 ? "+" : ""}

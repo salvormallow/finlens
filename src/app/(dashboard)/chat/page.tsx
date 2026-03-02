@@ -182,8 +182,8 @@ export default function ChatPage() {
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center space-y-6">
-              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <Sparkles className="h-8 w-8 text-primary" />
+              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                <Sparkles className="h-8 w-8 text-white" />
               </div>
               <div className="space-y-2 max-w-md">
                 <h2 className="text-lg font-semibold">
@@ -199,7 +199,7 @@ export default function ChatPage() {
                   <button
                     key={question}
                     onClick={() => handleSend(question)}
-                    className="text-left text-xs p-3 rounded-lg border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+                    className="text-left text-xs p-3 rounded-lg border border-border/50 hover:bg-primary/5 hover:border-primary/20 transition-all text-muted-foreground hover:text-foreground"
                   >
                     {question}
                   </button>
@@ -216,15 +216,15 @@ export default function ChatPage() {
                   }`}
                 >
                   {message.role === "assistant" && (
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <Bot className="h-4 w-4 text-primary" />
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/20">
+                      <Bot className="h-4 w-4 text-white" />
                     </div>
                   )}
                   <div
                     className={`max-w-[80%] rounded-lg px-4 py-3 text-sm whitespace-pre-wrap ${
                       message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
+                        ? "bg-gradient-to-r from-indigo-500 to-indigo-400 text-white"
+                        : "bg-muted/80 backdrop-blur-sm"
                     }`}
                   >
                     {message.content || (
@@ -236,7 +236,7 @@ export default function ChatPage() {
                     )}
                   </div>
                   {message.role === "user" && (
-                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <div className="h-8 w-8 rounded-full bg-muted/80 flex items-center justify-center shrink-0">
                       <User className="h-4 w-4" />
                     </div>
                   )}
@@ -244,10 +244,10 @@ export default function ChatPage() {
               ))}
               {showTypingIndicator && messages[messages.length - 1]?.role === "user" && (
                 <div className="flex gap-3">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Bot className="h-4 w-4 text-primary" />
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/20">
+                    <Bot className="h-4 w-4 text-white" />
                   </div>
-                  <div className="bg-muted rounded-lg px-4 py-3">
+                  <div className="bg-muted/80 backdrop-blur-sm rounded-lg px-4 py-3">
                     <div className="flex gap-1">
                       <div className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" />
                       <div className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.2s]" />

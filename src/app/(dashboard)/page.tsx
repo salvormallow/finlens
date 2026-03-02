@@ -127,7 +127,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between animate-fade-up">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
             Financial Dashboard
@@ -140,7 +140,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 animate-fade-up [animation-delay:100ms]">
         <StatCard
           title="Net Worth"
           value={formatCurrency(summary.netWorth)}
@@ -177,13 +177,13 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts Row 1 */}
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3 animate-fade-up [animation-delay:200ms]">
         <NetWorthCard data={data.netWorthTrend} />
         <AllocationCard data={data.portfolioAllocation} />
       </div>
 
       {/* Charts Row 2 */}
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 animate-fade-up [animation-delay:300ms]">
         <IncomeExpenseCard data={data.monthlyPnL} />
         <div className="space-y-4">
           {/* Tax Overview */}
@@ -267,23 +267,31 @@ export default function DashboardPage() {
       </div>
 
       {/* Cash Flow */}
+      <div className="animate-fade-up [animation-delay:400ms]">
       <CashFlowCard
         data={data.cashFlow}
         onCategoryClick={(category) => setDrillDown({ category })}
       />
+      </div>
 
       {/* Spending Trends */}
+      <div className="animate-fade-up [animation-delay:500ms]">
       <SpendingTrendsCard period={period} />
+      </div>
 
       {/* Portfolio Holdings */}
+      <div className="animate-fade-up [animation-delay:600ms]">
       <HoldingsTable />
+      </div>
 
       {/* Transaction Detail Table */}
+      <div className="animate-fade-up [animation-delay:700ms]">
       <TransactionTable
         period={period}
         initialFilter={drillDown}
         onClearFilter={() => setDrillDown(null)}
       />
+      </div>
     </div>
   );
 }

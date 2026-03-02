@@ -70,28 +70,33 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "flex flex-col border-r border-border bg-card transition-all duration-200",
+        "flex flex-col border-r border-border/50 bg-sidebar backdrop-blur-2xl transition-all duration-300",
         collapsed ? "w-16" : "w-64"
       )}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center gap-2 px-4 border-b border-border">
-        <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-          <TrendingUp className="h-5 w-5 text-primary-foreground" />
+      <div className="flex h-16 items-center gap-3 px-4 border-b border-border/50">
+        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
+          <TrendingUp className="h-4.5 w-4.5 text-white" />
         </div>
         {!collapsed && (
-          <span className="text-lg font-semibold tracking-tight">FinLens</span>
+          <span className="text-lg font-semibold tracking-tight">
+            FinLens
+          </span>
         )}
         <Button
           variant="ghost"
           size="sm"
-          className={cn("ml-auto h-8 w-8 p-0", collapsed && "ml-0")}
+          className={cn(
+            "ml-auto h-7 w-7 p-0 rounded-md text-muted-foreground hover:text-foreground",
+            collapsed && "ml-0"
+          )}
           onClick={() => setCollapsed(!collapsed)}
         >
           {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3.5 w-3.5" />
           ) : (
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-3.5 w-3.5" />
           )}
         </Button>
       </div>
@@ -109,13 +114,13 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    ? "bg-primary/15 text-primary shadow-sm shadow-primary/10 border border-primary/20"
+                    : "text-muted-foreground hover:bg-accent/80 hover:text-foreground border border-transparent"
                 )}
               >
-                <item.icon className="h-5 w-5 shrink-0" />
+                <item.icon className={cn("h-[18px] w-[18px] shrink-0", isActive && "text-primary")} />
                 {!collapsed && <span>{item.title}</span>}
               </Link>
             );
@@ -135,22 +140,22 @@ export function Sidebar() {
       </ScrollArea>
 
       {/* Bottom Actions */}
-      <div className="border-t border-border p-2 space-y-1">
+      <div className="border-t border-border/50 p-2 space-y-1">
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
               className={cn(
-                "w-full justify-start gap-3 text-muted-foreground",
+                "w-full justify-start gap-3 text-muted-foreground hover:text-foreground",
                 collapsed && "justify-center px-0"
               )}
               onClick={toggleTheme}
             >
               {theme === "dark" ? (
-                <Sun className="h-5 w-5 shrink-0" />
+                <Sun className="h-[18px] w-[18px] shrink-0" />
               ) : (
-                <Moon className="h-5 w-5 shrink-0" />
+                <Moon className="h-[18px] w-[18px] shrink-0" />
               )}
               {!collapsed && (
                 <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
@@ -164,7 +169,7 @@ export function Sidebar() {
           )}
         </Tooltip>
 
-        <Separator />
+        <Separator className="opacity-50" />
 
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
@@ -177,7 +182,7 @@ export function Sidebar() {
               )}
               onClick={() => signOut({ callbackUrl: "/login" })}
             >
-              <LogOut className="h-5 w-5 shrink-0" />
+              <LogOut className="h-[18px] w-[18px] shrink-0" />
               {!collapsed && <span>Sign Out</span>}
             </Button>
           </TooltipTrigger>

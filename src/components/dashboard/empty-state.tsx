@@ -8,8 +8,8 @@ export function EmptyDashboardState() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
       <div className="relative">
-        <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <TrendingUp className="h-10 w-10 text-primary" />
+        <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+          <TrendingUp className="h-10 w-10 text-white" />
         </div>
       </div>
 
@@ -23,7 +23,7 @@ export function EmptyDashboardState() {
       </div>
 
       <div className="space-y-3">
-        <Button asChild size="lg">
+        <Button asChild size="lg" className="bg-gradient-to-r from-indigo-500 to-indigo-400 hover:from-indigo-400 hover:to-indigo-300 text-white shadow-lg shadow-indigo-500/25 border-0">
           <Link href="/documents">
             <FileUp className="mr-2 h-5 w-5" />
             Upload Documents
@@ -54,7 +54,7 @@ export function EmptyDashboardState() {
         ].map((feature) => (
           <div
             key={feature.title}
-            className="p-4 rounded-lg border border-border bg-card/50 text-left"
+            className="p-4 rounded-lg border border-border/50 bg-card/50 backdrop-blur-sm text-left hover:border-primary/20 transition-colors"
           >
             <h3 className="font-medium text-sm mb-1">{feature.title}</h3>
             <p className="text-xs text-muted-foreground">

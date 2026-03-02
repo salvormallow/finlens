@@ -54,22 +54,22 @@ export function IncomeExpenseCard({
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "hsl(var(--card))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: "8px",
+              backgroundColor: "oklch(0.17 0.015 265 / 0.95)",
+              border: "1px solid oklch(0.35 0.025 265 / 0.3)",
+              borderRadius: "10px",
               fontSize: "12px",
             }}
             formatter={(value) => [formatCurrency(value as number), ""]}
           />
           <Bar
             dataKey="income"
-            fill="hsl(142, 76%, 36%)"
+            fill="oklch(0.65 0.2 160)"
             radius={[4, 4, 0, 0]}
             name="Income"
           />
           <Bar
             dataKey="expenses"
-            fill="hsl(0, 84%, 60%)"
+            fill="oklch(0.62 0.2 15)"
             radius={[4, 4, 0, 0]}
             name="Expenses"
           />

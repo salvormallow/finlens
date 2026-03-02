@@ -50,7 +50,7 @@ export function HoldingsTable() {
       {data && (
         <>
           {/* Summary */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4 p-3 rounded-lg bg-muted/50">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4 p-3 rounded-lg bg-muted/30 border border-border/30">
             <div>
               <p className="text-xs text-muted-foreground">Total Value</p>
               <p className="text-sm font-semibold">

@@ -6,12 +6,12 @@ import { formatCurrency } from "@/lib/utils/format";
 import type { PortfolioAllocation } from "@/types/financial";
 
 const COLORS = [
-  "hsl(217, 91%, 60%)",
-  "hsl(142, 76%, 36%)",
-  "hsl(38, 92%, 50%)",
-  "hsl(0, 84%, 60%)",
-  "hsl(262, 83%, 58%)",
-  "hsl(180, 70%, 45%)",
+  "oklch(0.55 0.22 265)",
+  "oklch(0.65 0.2 160)",
+  "oklch(0.75 0.17 75)",
+  "oklch(0.62 0.2 15)",
+  "oklch(0.58 0.22 300)",
+  "oklch(0.72 0.12 200)",
 ];
 
 const PLACEHOLDER_DATA: PortfolioAllocation[] = [
@@ -60,9 +60,9 @@ export function AllocationCard({
             </Pie>
             <Tooltip
               contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
+                backgroundColor: "oklch(0.17 0.015 265 / 0.95)",
+                border: "1px solid oklch(0.35 0.025 265 / 0.3)",
+                borderRadius: "10px",
                 fontSize: "12px",
               }}
               formatter={(value) => [formatCurrency(value as number), ""]}

@@ -61,9 +61,9 @@ export function CashFlowCard({
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "hsl(var(--card))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: "8px",
+              backgroundColor: "oklch(0.17 0.015 265 / 0.95)",
+              border: "1px solid oklch(0.35 0.025 265 / 0.3)",
+              borderRadius: "10px",
               fontSize: "12px",
             }}
             formatter={(value) => [formatCurrency(value as number), ""]}
@@ -74,10 +74,10 @@ export function CashFlowCard({
                 key={`cell-${index}`}
                 fill={
                   entry.name === "Net"
-                    ? "hsl(217, 91%, 60%)"
+                    ? "oklch(0.55 0.22 265)"
                     : entry.value >= 0
-                    ? "hsl(142, 76%, 36%)"
-                    : "hsl(0, 84%, 60%)"
+                    ? "oklch(0.65 0.2 160)"
+                    : "oklch(0.62 0.2 15)"
                 }
                 cursor={entry.name !== "Net" ? "pointer" : undefined}
                 onClick={() => {

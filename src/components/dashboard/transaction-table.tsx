@@ -42,12 +42,12 @@ interface TransactionTableProps {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  income: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
-  expense: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  asset: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  liability: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  investment: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  tax: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+  income: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+  expense: "bg-red-500/10 text-red-400 border border-red-500/20",
+  asset: "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20",
+  liability: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
+  investment: "bg-violet-500/10 text-violet-400 border border-violet-500/20",
+  tax: "bg-muted text-muted-foreground border border-border/50",
 };
 
 type SortField = "date" | "amount" | "category" | "dataType";

@@ -28,7 +28,7 @@ export function ChartCard({
   action,
 }: ChartCardProps) {
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card className={cn("group overflow-hidden hover:border-primary/20 transition-colors duration-300", className)}>
       <CardHeader className="flex flex-row items-start justify-between">
         <div>
           <CardTitle className="text-base">{title}</CardTitle>
