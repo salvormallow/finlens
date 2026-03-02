@@ -2,6 +2,7 @@ import { sql } from "@/lib/db";
 import { decryptNumber } from "./encryption";
 import type {
   DataType,
+  DashboardPeriod,
   Priority,
   FinancialSummary,
   NetWorthTrend,
@@ -83,13 +84,32 @@ const EMPTY_TAX: TaxOverview = {
   hasData: false,
 };
 
+// ─── Period helper ───────────────────────────────────────────────
+
+function computePeriodStartDate(period: DashboardPeriod): string | null {
+  if (period === "all") return null;
+  const months: Record<string, number> = { "3m": 3, "6m": 6, "12m": 12 };
+  const d = new Date();
+  d.setMonth(d.getMonth() - months[period]);
+  d.setDate(1);
+  return d.toISOString().split("T")[0];
+}
+
 // ─── Main export ────────────────────────────────────────────────
 
-export async function getDashboardData(userId: string): Promise<DashboardData> {
-  // 1. Fetch all data in parallel
+export async function getDashboardData(
+  userId: string,
+  period: DashboardPeriod = "all"
+): Promise<DashboardData> {
+  const startDate = computePeriodStartDate(period);
+
+  // 1. Fetch all data in parallel (holdings are never date-filtered — current state)
   const [financialResult, holdingsResult] = await Promise.all([
-    sql`SELECT data_type, category, amount, date
-        FROM financial_data WHERE user_id = ${userId}`,
+    startDate
+      ? sql`SELECT data_type, category, amount, date
+            FROM financial_data WHERE user_id = ${userId} AND date >= ${startDate}`
+      : sql`SELECT data_type, category, amount, date
+            FROM financial_data WHERE user_id = ${userId}`,
     sql`SELECT symbol, asset_class, quantity, cost_basis, current_value
         FROM portfolio_holdings WHERE user_id = ${userId}`,
   ]);

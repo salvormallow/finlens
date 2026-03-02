@@ -6,11 +6,15 @@ import { NetWorthCard } from "@/components/dashboard/net-worth-card";
 import { IncomeExpenseCard } from "@/components/dashboard/income-expense-card";
 import { AllocationCard } from "@/components/dashboard/allocation-card";
 import { CashFlowCard } from "@/components/dashboard/cash-flow-card";
+import { SpendingTrendsCard } from "@/components/dashboard/spending-trends-card";
+import { HoldingsTable } from "@/components/dashboard/holdings-table";
+import { TransactionTable } from "@/components/dashboard/transaction-table";
+import { PeriodSelector } from "@/components/dashboard/period-selector";
 import { EmptyDashboardState } from "@/components/dashboard/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils/format";
-import type { DashboardData } from "@/types/financial";
+import type { DashboardData, DashboardPeriod } from "@/types/financial";
 import {
   DollarSign,
   TrendingUp,
@@ -36,12 +40,16 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState<DashboardPeriod>("all");
+  const [drillDown, setDrillDown] = useState<{
+    category: string;
+  } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/dashboard");
+      const res = await fetch(`/api/dashboard?period=${period}`);
       if (!res.ok) throw new Error("Failed to load dashboard");
       const json: DashboardData = await res.json();
       setData(json);
@@ -50,7 +58,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [period]);
 
   useEffect(() => {
     fetchData();
@@ -60,13 +68,16 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Financial Dashboard
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Overview of your financial health
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Financial Dashboard
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Overview of your financial health
+            </p>
+          </div>
+          <PeriodSelector value={period} onChange={setPeriod} />
         </div>
 
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
@@ -116,13 +127,16 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Financial Dashboard
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Overview of your financial health
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Financial Dashboard
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Overview of your financial health
+          </p>
+        </div>
+        <PeriodSelector value={period} onChange={setPeriod} />
       </div>
 
       {/* Summary Stats */}
@@ -253,7 +267,23 @@ export default function DashboardPage() {
       </div>
 
       {/* Cash Flow */}
-      <CashFlowCard data={data.cashFlow} />
+      <CashFlowCard
+        data={data.cashFlow}
+        onCategoryClick={(category) => setDrillDown({ category })}
+      />
+
+      {/* Spending Trends */}
+      <SpendingTrendsCard period={period} />
+
+      {/* Portfolio Holdings */}
+      <HoldingsTable />
+
+      {/* Transaction Detail Table */}
+      <TransactionTable
+        period={period}
+        initialFilter={drillDown}
+        onClearFilter={() => setDrillDown(null)}
+      />
     </div>
   );
 }

@@ -286,6 +286,67 @@ export interface GoalProgress {
   projectedCompletionDate: string | null;
 }
 
+// --- Dashboard Enhancement Types ---
+
+export type DashboardPeriod = "3m" | "6m" | "12m" | "all";
+
+export interface TransactionRecord {
+  id: string;
+  date: string;
+  dataType: DataType;
+  category: string;
+  subcategory: string | null;
+  amount: number;
+  description: string | null;
+  source: string;
+}
+
+export interface TransactionListResponse {
+  transactions: TransactionRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface HoldingDetail {
+  id: string;
+  symbol: string;
+  quantity: number;
+  costBasis: number;
+  currentValue: number;
+  gainLoss: number;
+  gainLossPercent: number;
+  accountName: string;
+  accountType: string;
+}
+
+export interface HoldingsResponse {
+  holdings: HoldingDetail[];
+  totalValue: number;
+  totalCostBasis: number;
+  totalGainLoss: number;
+  totalGainLossPercent: number;
+}
+
+export interface SpendingTrendMonth {
+  yearMonth: string;
+  label: string;
+  amount: number;
+}
+
+export interface SpendingTrendCategory {
+  category: string;
+  months: SpendingTrendMonth[];
+  trendDirection: "increasing" | "decreasing" | "stable";
+  changePercent: number;
+}
+
+export interface SpendingTrendsResponse {
+  categories: SpendingTrendCategory[];
+  months: string[];
+}
+
 // --- Settings Types ---
 
 export interface UserDataStats {

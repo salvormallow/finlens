@@ -29,11 +29,13 @@ const PLACEHOLDER_DATA: CashFlowItem[] = [
 interface CashFlowCardProps {
   data?: CashFlowItem[];
   loading?: boolean;
+  onCategoryClick?: (category: string) => void;
 }
 
 export function CashFlowCard({
   data = PLACEHOLDER_DATA,
   loading = false,
+  onCategoryClick,
 }: CashFlowCardProps) {
   return (
     <ChartCard
@@ -77,6 +79,12 @@ export function CashFlowCard({
                     ? "hsl(142, 76%, 36%)"
                     : "hsl(0, 84%, 60%)"
                 }
+                cursor={entry.name !== "Net" ? "pointer" : undefined}
+                onClick={() => {
+                  if (entry.name !== "Net" && onCategoryClick) {
+                    onCategoryClick(entry.name);
+                  }
+                }}
               />
             ))}
           </Bar>

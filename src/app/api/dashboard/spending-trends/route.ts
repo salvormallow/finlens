@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getDashboardData } from "@/lib/db/dashboard";
+import { getSpendingTrends } from "@/lib/db/transactions";
 import type { DashboardPeriod } from "@/types/financial";
 
 const VALID_PERIODS = new Set<DashboardPeriod>(["3m", "6m", "12m", "all"]);
@@ -13,17 +13,19 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const periodParam = searchParams.get("period") || "all";
-    const period: DashboardPeriod = VALID_PERIODS.has(periodParam as DashboardPeriod)
+    const periodParam = searchParams.get("period") || "6m";
+    const period: DashboardPeriod = VALID_PERIODS.has(
+      periodParam as DashboardPeriod
+    )
       ? (periodParam as DashboardPeriod)
-      : "all";
+      : "6m";
 
-    const data = await getDashboardData(session.user.id, period);
+    const data = await getSpendingTrends(session.user.id, period);
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Dashboard data error:", error);
+    console.error("Spending trends error:", error);
     return NextResponse.json(
-      { error: "Failed to load dashboard data" },
+      { error: "Failed to load spending trends" },
       { status: 500 }
     );
   }
