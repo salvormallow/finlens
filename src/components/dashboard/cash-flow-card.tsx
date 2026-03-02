@@ -12,11 +12,7 @@ import {
 } from "recharts";
 import { ChartCard } from "./chart-card";
 import { formatCurrency } from "@/lib/utils/format";
-
-interface CashFlowItem {
-  name: string;
-  value: number;
-}
+import type { CashFlowItem } from "@/types/financial";
 
 const PLACEHOLDER_DATA: CashFlowItem[] = [
   { name: "Salary", value: 8500 },
