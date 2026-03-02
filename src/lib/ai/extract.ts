@@ -129,7 +129,7 @@ export async function extractFinancialData(
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
-function parseJsonResponse(text: string): unknown {
+export function parseJsonResponse(text: string): unknown {
   // Strip markdown code fences if present
   let cleaned = text.trim();
   if (cleaned.startsWith("```")) {
@@ -171,7 +171,7 @@ function parseJsonResponse(text: string): unknown {
   );
 }
 
-function repairTruncatedJson(text: string): string | null {
+export function repairTruncatedJson(text: string): string | null {
   // Count unclosed brackets and braces to close them
   let braces = 0;
   let brackets = 0;
