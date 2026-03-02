@@ -130,3 +130,24 @@ CREATE TABLE IF NOT EXISTS document_requests (
 );
 
 CREATE INDEX idx_document_requests_user ON document_requests(user_id);
+
+-- Goals table (target_amount and current_amount are encrypted at app level)
+CREATE TABLE IF NOT EXISTS goals (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  goal_type VARCHAR(30) NOT NULL CHECK (goal_type IN (
+    'emergency_fund', 'debt_payoff', 'savings', 'net_worth', 'retirement', 'custom'
+  )),
+  target_amount TEXT NOT NULL, -- encrypted
+  current_amount TEXT, -- encrypted, computed on read
+  deadline DATE,
+  status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'abandoned')),
+  ai_insight TEXT,
+  ai_insight_updated_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_goals_user ON goals(user_id);
+CREATE INDEX idx_goals_status ON goals(user_id, status);

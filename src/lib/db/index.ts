@@ -117,6 +117,24 @@ export async function initializeDatabase() {
     )
   `;
 
+  // Goals
+  await sql`
+    CREATE TABLE IF NOT EXISTS goals (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      goal_type VARCHAR(30) NOT NULL,
+      target_amount TEXT NOT NULL,
+      current_amount TEXT,
+      deadline DATE,
+      status VARCHAR(20) NOT NULL DEFAULT 'active',
+      ai_insight TEXT,
+      ai_insight_updated_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
+
   // Phase 2 migration: add blob_url to documents
   await sql`
     ALTER TABLE documents

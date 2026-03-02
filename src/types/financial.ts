@@ -250,3 +250,56 @@ export interface DashboardData {
   taxOverview: TaxOverview;
   recommendations: DashboardRecommendation[];
 }
+
+// --- Goal Types ---
+
+export type GoalType =
+  | "emergency_fund"
+  | "debt_payoff"
+  | "savings"
+  | "net_worth"
+  | "retirement"
+  | "custom";
+
+export type GoalStatus = "active" | "completed" | "abandoned";
+
+export interface Goal {
+  id: string;
+  userId: string;
+  name: string;
+  goalType: GoalType;
+  targetAmount: number;
+  currentAmount: number;
+  deadline: string | null;
+  status: GoalStatus;
+  aiInsight: string | null;
+  aiInsightUpdatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GoalProgress {
+  goal: Goal;
+  percentage: number;
+  remaining: number;
+  isOnTrack: boolean;
+  projectedCompletionDate: string | null;
+}
+
+// --- Settings Types ---
+
+export interface UserDataStats {
+  documentCount: number;
+  financialRecordCount: number;
+  accountCount: number;
+  goalCount: number;
+}
+
+export interface ExportRow {
+  date: string;
+  type: string;
+  category: string;
+  amount: number;
+  description: string;
+  documentSource: string;
+}

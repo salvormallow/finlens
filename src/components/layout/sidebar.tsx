@@ -18,6 +18,7 @@ import {
   FileText,
   Lightbulb,
   MessageSquare,
+  Target,
   Settings,
   LogOut,
   TrendingUp,
@@ -48,6 +49,11 @@ const navItems = [
     title: "Chat",
     href: "/chat",
     icon: MessageSquare,
+  },
+  {
+    title: "Goals",
+    href: "/goals",
+    icon: Target,
   },
   {
     title: "Settings",
