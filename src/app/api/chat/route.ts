@@ -7,8 +7,14 @@ import {
   saveChatMessage,
   clearChatHistory,
 } from "@/lib/db/chat";
-import { buildFinancialContext } from "@/lib/ai/context";
+import { getClientProfile, getMemoryNotes } from "@/lib/db/memory";
+import { buildFinancialContext, buildMemoryBrief } from "@/lib/ai/context";
 import { CHART_TOOLS, executeChartTool } from "@/lib/ai/chart-tools";
+import {
+  MEMORY_TOOLS,
+  executeMemoryTool,
+  type MemoryToolResult,
+} from "@/lib/ai/memory-tools";
 
 export const maxDuration = 30;
 
@@ -38,7 +44,15 @@ CHART GENERATION:
 - Pick the best chart_type: bar for comparisons, line/area for trends over time, pie for proportions, stacked_bar for composition over time.
 - After generating a chart, provide a brief 1-2 sentence insight about what the chart shows.
 
---- USER'S UPLOADED FINANCIAL DATA (may be incomplete) ---
+CLIENT MEMORY:
+- You have memory tools to remember important facts about this client across sessions.
+- When the client reveals something worth remembering (life events, financial plans, corrections, preferences, follow-ups), use the save_memory tool.
+- Before saving, check the Client Memory Brief below to avoid duplicates. If a fact already exists but has changed, use update_memory instead.
+- When you save a memory, briefly mention it naturally in your response, e.g., "I've noted that you're planning to buy a house in 2027."
+- For profile-level insights (risk tolerance, life stage, etc.), use propose_profile_update when you're confident.
+- NEVER memorize: account numbers, SSNs, passwords, exact dollar amounts, or emotional states.
+- Bias toward saving more rather than less — it's better to remember something that turns out to be minor than to forget something important.
+
 `;
 
 // Stream event types for NDJSON protocol
@@ -52,7 +66,19 @@ interface ChartEvent {
   config: unknown;
 }
 
-type StreamEvent = TextEvent | ChartEvent;
+interface MemoryEvent {
+  type: "memory";
+  action: string;
+  detail: string;
+  proposed_fields?: Record<string, string>;
+}
+
+type StreamEvent = TextEvent | ChartEvent | MemoryEvent;
+
+const ALL_TOOLS = [...CHART_TOOLS, ...MEMORY_TOOLS];
+const MEMORY_TOOL_NAMES = new Set(
+  MEMORY_TOOLS.map((t) => t.name)
+);
 
 // POST — streaming chat response with tool-use support
 export async function POST(request: Request) {
@@ -72,12 +98,26 @@ export async function POST(request: Request) {
     }
 
     // 1. Save user message to DB
-    await saveChatMessage(session.user.id, "user", message.trim());
+    const userMsgId = await saveChatMessage(
+      session.user.id,
+      "user",
+      message.trim()
+    );
 
-    // 2. Load financial context
-    const dashboardData = await getDashboardData(session.user.id);
+    // 2. Load financial context + memory context in parallel
+    const [dashboardData, profile, memoryNotes] = await Promise.all([
+      getDashboardData(session.user.id),
+      getClientProfile(session.user.id),
+      getMemoryNotes(session.user.id),
+    ]);
+
     const financialContext = buildFinancialContext(dashboardData);
-    const systemPrompt = SYSTEM_PROMPT_PREFIX + financialContext;
+    const memoryBrief = buildMemoryBrief(profile, memoryNotes);
+    const systemPrompt =
+      SYSTEM_PROMPT_PREFIX +
+      financialContext +
+      "\n\n" +
+      memoryBrief;
 
     // 3. Load chat history
     const history = await getChatHistory(session.user.id, 20);
@@ -101,72 +141,103 @@ export async function POST(request: Request) {
             );
           };
 
-          // First API call (may include tool_use)
-          const response = await anthropic.messages.create({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 2048,
-            temperature: 0.7,
-            system: systemPrompt,
-            messages,
-            tools: CHART_TOOLS,
-          });
+          // Agentic loop: keep calling Claude until no more tool_use blocks
+          let currentMessages = [...messages];
+          let continueLoop = true;
 
-          // Process content blocks
-          for (const block of response.content) {
-            if (block.type === "text" && block.text) {
-              sendEvent({ type: "text", content: block.text });
-              fullTextResponse += block.text;
-            } else if (block.type === "tool_use") {
-              // Execute the chart tool
-              try {
-                const chartConfig = await executeChartTool(
-                  block.input as Parameters<typeof executeChartTool>[0],
-                  userId
-                );
-                sendEvent({ type: "chart", config: chartConfig });
+          while (continueLoop) {
+            const response = await anthropic.messages.create({
+              model: "claude-sonnet-4-20250514",
+              max_tokens: 2048,
+              temperature: 0.7,
+              system: systemPrompt,
+              messages: currentMessages,
+              tools: ALL_TOOLS,
+            });
 
-                // Now get Claude's follow-up response after tool result
-                const followUp = await anthropic.messages.create({
-                  model: "claude-sonnet-4-20250514",
-                  max_tokens: 1024,
-                  temperature: 0.7,
-                  system: systemPrompt,
-                  messages: [
-                    ...messages,
-                    { role: "assistant", content: response.content },
-                    {
-                      role: "user",
-                      content: [
-                        {
-                          type: "tool_result",
-                          tool_use_id: block.id,
-                          content: JSON.stringify({
-                            success: true,
-                            chartType: chartConfig.chartType,
-                            dataPoints: chartConfig.data.length,
-                            series: chartConfig.series.map((s) => s.label),
-                          }),
-                        },
-                      ],
-                    },
-                  ],
-                  tools: CHART_TOOLS,
-                });
+            // Collect tool results for this turn
+            const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
+            let hasToolUse = false;
 
-                // Extract text from follow-up
-                for (const fb of followUp.content) {
-                  if (fb.type === "text" && fb.text) {
-                    sendEvent({ type: "text", content: fb.text });
-                    fullTextResponse += fb.text;
+            for (const block of response.content) {
+              if (block.type === "text" && block.text) {
+                sendEvent({ type: "text", content: block.text });
+                fullTextResponse += block.text;
+              } else if (block.type === "tool_use") {
+                hasToolUse = true;
+
+                if (MEMORY_TOOL_NAMES.has(block.name)) {
+                  // Execute memory tool
+                  const result: MemoryToolResult = await executeMemoryTool(
+                    block.name,
+                    block.input,
+                    userId,
+                    userMsgId
+                  );
+
+                  sendEvent({
+                    type: "memory",
+                    action: block.name,
+                    detail: result.detail,
+                    proposed_fields: result.proposed_fields,
+                  });
+
+                  toolResults.push({
+                    type: "tool_result",
+                    tool_use_id: block.id,
+                    content: JSON.stringify(result),
+                  });
+                } else if (block.name === "generate_chart") {
+                  // Execute chart tool
+                  try {
+                    const chartConfig = await executeChartTool(
+                      block.input as Parameters<typeof executeChartTool>[0],
+                      userId
+                    );
+                    sendEvent({ type: "chart", config: chartConfig });
+
+                    toolResults.push({
+                      type: "tool_result",
+                      tool_use_id: block.id,
+                      content: JSON.stringify({
+                        success: true,
+                        chartType: chartConfig.chartType,
+                        dataPoints: chartConfig.data.length,
+                        series: chartConfig.series.map((s) => s.label),
+                      }),
+                    });
+                  } catch (toolError) {
+                    console.error("Chart tool error:", toolError);
+                    toolResults.push({
+                      type: "tool_result",
+                      tool_use_id: block.id,
+                      content: JSON.stringify({
+                        success: false,
+                        error:
+                          "Chart generation failed — possibly insufficient data.",
+                      }),
+                      is_error: true,
+                    });
                   }
                 }
-              } catch (toolError) {
-                console.error("Chart tool error:", toolError);
-                const errorMsg =
-                  "\n\nI tried to generate a chart but encountered an error. This may be due to insufficient data — try uploading more financial documents.";
-                sendEvent({ type: "text", content: errorMsg });
-                fullTextResponse += errorMsg;
               }
+            }
+
+            if (hasToolUse && toolResults.length > 0) {
+              // Append assistant response + tool results, then loop
+              currentMessages = [
+                ...currentMessages,
+                { role: "assistant", content: response.content },
+                { role: "user", content: toolResults },
+              ];
+            } else {
+              // No tool use — we're done
+              continueLoop = false;
+            }
+
+            // Safety: stop after a reasonable number of iterations
+            if (currentMessages.length > messages.length + 10) {
+              continueLoop = false;
             }
           }
 

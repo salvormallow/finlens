@@ -20,6 +20,7 @@ import {
   MessageSquare,
   Target,
   FileBarChart,
+  Brain,
   Settings,
   LogOut,
   TrendingUp,
@@ -60,6 +61,11 @@ const navItems = [
     title: "Reports",
     href: "/reports",
     icon: FileBarChart,
+  },
+  {
+    title: "Memory",
+    href: "/memory",
+    icon: Brain,
   },
   {
     title: "Settings",

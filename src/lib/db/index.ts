@@ -149,6 +149,38 @@ export async function initializeDatabase() {
     )
   `;
 
+  // Advisor client profile
+  await sql`
+    CREATE TABLE IF NOT EXISTS advisor_client_profile (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      risk_tolerance VARCHAR(20),
+      financial_literacy VARCHAR(20),
+      communication_preference VARCHAR(20),
+      life_stage VARCHAR(20),
+      household_info JSONB,
+      key_goals_summary TEXT,
+      last_confirmed_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
+
+  // Advisor memory notes
+  await sql`
+    CREATE TABLE IF NOT EXISTS advisor_memory_notes (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      category VARCHAR(20) NOT NULL,
+      content TEXT NOT NULL,
+      source VARCHAR(30) NOT NULL DEFAULT 'chat',
+      source_message_id UUID,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
+
   // Phase 2 migration: add blob_url to documents
   await sql`
     ALTER TABLE documents
