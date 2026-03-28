@@ -151,3 +151,41 @@ CREATE TABLE IF NOT EXISTS goals (
 
 CREATE INDEX idx_goals_user ON goals(user_id);
 CREATE INDEX idx_goals_status ON goals(user_id, status);
+
+-- Advisor client profile table (one row per user)
+CREATE TABLE IF NOT EXISTS advisor_client_profile (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  risk_tolerance VARCHAR(20) CHECK (risk_tolerance IN ('conservative', 'moderate', 'aggressive')),
+  financial_literacy VARCHAR(20) CHECK (financial_literacy IN ('beginner', 'intermediate', 'advanced')),
+  communication_preference VARCHAR(20) CHECK (communication_preference IN ('concise', 'detailed', 'conversational')),
+  life_stage VARCHAR(20) CHECK (life_stage IN ('early_career', 'mid_career', 'pre_retirement', 'retired')),
+  household_info JSONB,
+  key_goals_summary TEXT,
+  last_confirmed_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_advisor_profile_user ON advisor_client_profile(user_id);
+
+-- Advisor memory notes table (append-only with overwrites on dedup)
+CREATE TABLE IF NOT EXISTS advisor_memory_notes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  category VARCHAR(20) NOT NULL CHECK (category IN (
+    'life_event', 'financial_plan', 'correction', 'preference', 'follow_up', 'pattern'
+  )),
+  content TEXT NOT NULL,
+  source VARCHAR(30) NOT NULL DEFAULT 'chat' CHECK (source IN (
+    'chat', 'recommendation_interaction', 'goal_update', 'document_upload'
+  )),
+  source_message_id UUID,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_memory_notes_user ON advisor_memory_notes(user_id);
+CREATE INDEX idx_memory_notes_active ON advisor_memory_notes(user_id, is_active);
+CREATE INDEX idx_memory_notes_category ON advisor_memory_notes(user_id, category);

@@ -386,6 +386,41 @@ export interface FinancialReport {
   createdAt: string;
 }
 
+// --- Advisor Memory Types ---
+
+export type RiskTolerance = "conservative" | "moderate" | "aggressive";
+export type FinancialLiteracy = "beginner" | "intermediate" | "advanced";
+export type CommunicationPreference = "concise" | "detailed" | "conversational";
+export type LifeStage = "early_career" | "mid_career" | "pre_retirement" | "retired";
+export type MemoryNoteCategory = "life_event" | "financial_plan" | "correction" | "preference" | "follow_up" | "pattern";
+export type MemoryNoteSource = "chat" | "recommendation_interaction" | "goal_update" | "document_upload";
+
+export interface AdvisorClientProfile {
+  id: string;
+  userId: string;
+  riskTolerance: RiskTolerance | null;
+  financialLiteracy: FinancialLiteracy | null;
+  communicationPreference: CommunicationPreference | null;
+  lifeStage: LifeStage | null;
+  householdInfo: Record<string, unknown> | null;
+  keyGoalsSummary: string | null;
+  lastConfirmedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdvisorMemoryNote {
+  id: string;
+  userId: string;
+  category: MemoryNoteCategory;
+  content: string;
+  source: MemoryNoteSource;
+  sourceMessageId: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // --- Settings Types ---
 
 export interface UserDataStats {

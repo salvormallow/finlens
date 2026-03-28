@@ -1,4 +1,4 @@
-import type { DashboardData } from "@/types/financial";
+import type { DashboardData, AdvisorClientProfile, AdvisorMemoryNote } from "@/types/financial";
 
 function fmt(n: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -93,6 +93,94 @@ export function buildFinancialContext(data: DashboardData): string {
         `${t.date}: Assets ${fmt(t.assets)}, Liabilities ${fmt(t.liabilities)}, Net Worth ${fmt(t.netWorth)}`
       );
     }
+  }
+
+  return lines.join("\n");
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  life_event: "Life Events",
+  financial_plan: "Financial Plans",
+  correction: "Corrections",
+  preference: "Preferences",
+  follow_up: "Follow-ups",
+  pattern: "Observed Patterns",
+};
+
+const LIFE_STAGE_LABELS: Record<string, string> = {
+  early_career: "Early career",
+  mid_career: "Mid-career",
+  pre_retirement: "Pre-retirement",
+  retired: "Retired",
+};
+
+export function buildMemoryBrief(
+  profile: AdvisorClientProfile | null,
+  notes: AdvisorMemoryNote[]
+): string {
+  const lines: string[] = [];
+
+  lines.push("--- CLIENT MEMORY BRIEF ---");
+  lines.push("Use this to personalize your responses. You wrote these notes from previous conversations.");
+
+  // Profile section
+  if (profile) {
+    const profileParts: string[] = [];
+    if (profile.lifeStage) profileParts.push(LIFE_STAGE_LABELS[profile.lifeStage] || profile.lifeStage);
+    if (profile.riskTolerance) profileParts.push(`${profile.riskTolerance} risk tolerance`);
+    if (profile.communicationPreference) profileParts.push(`prefers ${profile.communicationPreference} communication`);
+    if (profile.financialLiteracy) profileParts.push(`${profile.financialLiteracy} financial literacy`);
+
+    if (profileParts.length > 0) {
+      lines.push("");
+      lines.push(`Profile: ${profileParts.join(", ")}`);
+    }
+
+    if (profile.householdInfo) {
+      const info = profile.householdInfo;
+      const parts: string[] = [];
+      if (info.family_size) parts.push(`family of ${info.family_size}`);
+      if (info.dependents) parts.push(`${info.dependents} dependents`);
+      if (info.partner_income) parts.push(`partner income noted`);
+      if (parts.length > 0) {
+        lines.push(`Household: ${parts.join(", ")}`);
+      }
+    }
+
+    if (profile.keyGoalsSummary) {
+      lines.push(`Goals Summary: ${profile.keyGoalsSummary}`);
+    }
+
+    if (profile.lastConfirmedAt) {
+      const confirmedDate = new Date(profile.lastConfirmedAt);
+      const daysSinceConfirm = Math.floor((Date.now() - confirmedDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSinceConfirm > 90) {
+        lines.push(`NOTE: Profile was last confirmed ${daysSinceConfirm} days ago. Consider a check-in to verify this information is still accurate.`);
+      }
+    }
+  }
+
+  // Notes section grouped by category
+  if (notes.length > 0) {
+    const grouped = new Map<string, AdvisorMemoryNote[]>();
+    for (const note of notes) {
+      const existing = grouped.get(note.category) || [];
+      existing.push(note);
+      grouped.set(note.category, existing);
+    }
+
+    for (const [category, categoryNotes] of grouped) {
+      lines.push("");
+      lines.push(`${CATEGORY_LABELS[category] || category}:`);
+      for (const note of categoryNotes) {
+        lines.push(`  - [${note.id}] ${note.content}`);
+      }
+    }
+  }
+
+  if (!profile && notes.length === 0) {
+    lines.push("");
+    lines.push("No client memory yet. As you learn important facts about this client, use the save_memory tool to remember them.");
   }
 
   return lines.join("\n");

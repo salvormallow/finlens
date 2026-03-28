@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { InlineChart } from "@/components/chat/inline-chart";
-import { Send, Bot, User, Sparkles, Trash2 } from "lucide-react";
+import { Send, Bot, User, Sparkles, Trash2, Brain } from "lucide-react";
 import { toast } from "sonner";
 
 interface ChartConfig {
@@ -25,6 +25,22 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   parts: MessagePart[];
+}
+
+const MEMORY_ACTION_LABELS: Record<string, string> = {
+  save_memory: "Noted",
+  update_memory: "Updated",
+  retire_memory: "Retired",
+  propose_profile_update: "Profile updated",
+};
+
+function showMemoryToast(action: string, detail: string) {
+  const label = MEMORY_ACTION_LABELS[action] || "Memory";
+  toast(label, {
+    description: detail,
+    icon: <Brain className="h-4 w-4" />,
+    duration: 4000,
+  });
 }
 
 const SUGGESTED_QUESTIONS = [
@@ -156,6 +172,8 @@ export default function ChatPage() {
                   };
                 })
               );
+            } else if (event.type === "memory") {
+              showMemoryToast(event.action, event.detail);
             }
           } catch {
             // If not valid JSON, treat as plain text (backwards compat)
@@ -213,6 +231,8 @@ export default function ChatPage() {
                 };
               })
             );
+          } else if (event.type === "memory") {
+            showMemoryToast(event.action, event.detail);
           }
         } catch {
           // Ignore
