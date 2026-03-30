@@ -1,18 +1,7 @@
 import { NextResponse } from "next/server";
-import { put } from "@vercel/blob";
-import { createHash } from "crypto";
 import { auth } from "@/lib/auth";
-import { createDocument, getDocumentByHash } from "@/lib/db/documents";
+import { uploadDocument } from "@/lib/services/documents";
 import type { DocumentType } from "@/types/financial";
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
-
-const ALLOWED_TYPES = [
-  "application/pdf",
-  "text/plain",
-  "text/csv",
-  "application/csv",
-];
 
 const VALID_DOC_TYPES: DocumentType[] = [
   "bank_statement",
@@ -23,6 +12,13 @@ const VALID_DOC_TYPES: DocumentType[] = [
   "pay_stub",
   "1099",
   "other",
+];
+
+const ALLOWED_TYPES = [
+  "application/pdf",
+  "text/plain",
+  "text/csv",
+  "application/csv",
 ];
 
 export async function POST(request: Request) {
@@ -36,16 +32,9 @@ export async function POST(request: Request) {
     const file = formData.get("file") as File | null;
     const documentType = formData.get("documentType") as string;
 
-    // Validate file
     if (!file) {
       return NextResponse.json(
         { error: "No file provided" },
-        { status: 400 }
-      );
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: "File too large (max 10MB)" },
         { status: 400 }
       );
     }
@@ -55,8 +44,6 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-
-    // Validate document type
     if (!VALID_DOC_TYPES.includes(documentType as DocumentType)) {
       return NextResponse.json(
         { error: "Invalid document type" },
@@ -64,45 +51,28 @@ export async function POST(request: Request) {
       );
     }
 
-    // Compute SHA-256 hash of file contents
-    const arrayBuffer = await file.arrayBuffer();
-    const fileHash = createHash("sha256")
-      .update(Buffer.from(arrayBuffer))
-      .digest("hex");
+    const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Check for duplicate
-    const existing = await getDocumentByHash(session.user.id, fileHash);
-    if (existing) {
+    const result = await uploadDocument({
+      userId: session.user.id,
+      file: { name: file.name, type: file.type, buffer },
+      documentType: documentType as DocumentType,
+    });
+
+    if (result.duplicate) {
       return NextResponse.json(
         {
           error: "This file has already been uploaded",
-          existingDocumentId: existing.id,
-          existingFileName: existing.file_name,
+          existingDocumentId: result.documentId,
+          existingFileName: result.fileName,
         },
         { status: 409 }
       );
     }
 
-    // Upload to Vercel Blob (temporary staging)
-    const blob = await put(
-      `staging/${session.user.id}/${Date.now()}-${file.name}`,
-      new Blob([arrayBuffer], { type: file.type }),
-      { access: "private" }
-    );
-
-    // Create document record in database
-    const documentId = await createDocument({
-      userId: session.user.id,
-      documentType: documentType as DocumentType,
-      fileName: file.name,
-      blobUrl: blob.url,
-      fileHash,
-    });
-
     return NextResponse.json({
-      documentId,
-      fileName: file.name,
-      blobUrl: blob.url,
+      documentId: result.documentId,
+      fileName: result.fileName,
     });
   } catch (error) {
     console.error("Upload error:", error);

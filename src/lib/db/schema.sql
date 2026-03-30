@@ -189,3 +189,98 @@ CREATE TABLE IF NOT EXISTS advisor_memory_notes (
 CREATE INDEX idx_memory_notes_user ON advisor_memory_notes(user_id);
 CREATE INDEX idx_memory_notes_active ON advisor_memory_notes(user_id, is_active);
 CREATE INDEX idx_memory_notes_category ON advisor_memory_notes(user_id, category);
+
+-- ─── Telegram Support (Phase 1) ────────────────────────────────
+
+-- Add telegram_id to users (nullable — linked after account creation)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_id BIGINT UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_shadow BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+
+CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id) WHERE telegram_id IS NOT NULL;
+
+-- Add channel tracking to chat_history
+ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS channel VARCHAR(20) NOT NULL DEFAULT 'web';
+
+-- Rate limiting table
+CREATE TABLE IF NOT EXISTS rate_limits (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  action_type VARCHAR(30) NOT NULL,  -- 'chat', 'document_upload', 'briefing'
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_rate_limits_user_action ON rate_limits(user_id, action_type, created_at);
+
+-- Magic links for dashboard handoff
+CREATE TABLE IF NOT EXISTS magic_links (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token VARCHAR(64) UNIQUE NOT NULL,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  used_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_magic_links_token ON magic_links(token);
+
+-- API usage tracking (token costs per user)
+CREATE TABLE IF NOT EXISTS api_usage (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  call_type VARCHAR(30) NOT NULL,  -- 'chat', 'extraction', 'briefing', 'alert'
+  input_tokens INTEGER NOT NULL DEFAULT 0,
+  output_tokens INTEGER NOT NULL DEFAULT 0,
+  model VARCHAR(50),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_api_usage_user ON api_usage(user_id, created_at);
+
+-- Briefing queue for fan-out cron pattern
+CREATE TABLE IF NOT EXISTS briefing_queue (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  briefing_type VARCHAR(20) NOT NULL DEFAULT 'daily',  -- 'daily', 'alert'
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',  -- 'pending', 'processing', 'completed', 'failed'
+  scheduled_for TIMESTAMP WITH TIME ZONE NOT NULL,
+  started_at TIMESTAMP WITH TIME ZONE,
+  completed_at TIMESTAMP WITH TIME ZONE,
+  error_message TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_briefing_queue_status ON briefing_queue(status, scheduled_for);
+CREATE INDEX idx_briefing_queue_user ON briefing_queue(user_id, briefing_type);
+
+-- Onboarding state machine
+CREATE TABLE IF NOT EXISTS onboarding_state (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  current_step VARCHAR(30) NOT NULL DEFAULT 'first_contact',
+  -- Steps: first_contact, rapport, first_document, first_value, account_creation, first_briefing, paywall, completed
+  first_contact_at TIMESTAMP WITH TIME ZONE,
+  first_document_at TIMESTAMP WITH TIME ZONE,
+  account_created_at TIMESTAMP WITH TIME ZONE,
+  first_briefing_at TIMESTAMP WITH TIME ZONE,
+  paywall_shown_at TIMESTAMP WITH TIME ZONE,
+  subscribed_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Subscriptions
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status VARCHAR(20) NOT NULL DEFAULT 'inactive',  -- 'active', 'cancelled', 'past_due', 'inactive', 'trial'
+  stripe_customer_id VARCHAR(255),
+  stripe_subscription_id VARCHAR(255),
+  current_period_end TIMESTAMP WITH TIME ZONE,
+  cancel_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_subscriptions_stripe ON subscriptions(stripe_customer_id);
+CREATE INDEX idx_subscriptions_status ON subscriptions(user_id, status);

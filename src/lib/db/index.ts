@@ -197,4 +197,96 @@ export async function initializeDatabase() {
     ON documents (user_id, file_hash)
     WHERE file_hash IS NOT NULL
   `;
+
+  // ─── Telegram Support (Phase 1) ────────────────────────────────
+
+  // Add telegram_id and shadow account support to users
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_id BIGINT UNIQUE`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_shadow BOOLEAN NOT NULL DEFAULT FALSE`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)`;
+
+  // Add channel tracking to chat_history
+  await sql`ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS channel VARCHAR(20) NOT NULL DEFAULT 'web'`;
+
+  // Rate limiting
+  await sql`
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      action_type VARCHAR(30) NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
+
+  // Magic links
+  await sql`
+    CREATE TABLE IF NOT EXISTS magic_links (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token VARCHAR(64) UNIQUE NOT NULL,
+      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      used_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
+
+  // API usage tracking
+  await sql`
+    CREATE TABLE IF NOT EXISTS api_usage (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      call_type VARCHAR(30) NOT NULL,
+      input_tokens INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      model VARCHAR(50),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
+
+  // Briefing queue
+  await sql`
+    CREATE TABLE IF NOT EXISTS briefing_queue (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      briefing_type VARCHAR(20) NOT NULL DEFAULT 'daily',
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      scheduled_for TIMESTAMP WITH TIME ZONE NOT NULL,
+      started_at TIMESTAMP WITH TIME ZONE,
+      completed_at TIMESTAMP WITH TIME ZONE,
+      error_message TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
+
+  // Onboarding state machine
+  await sql`
+    CREATE TABLE IF NOT EXISTS onboarding_state (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      current_step VARCHAR(30) NOT NULL DEFAULT 'first_contact',
+      first_contact_at TIMESTAMP WITH TIME ZONE,
+      first_document_at TIMESTAMP WITH TIME ZONE,
+      account_created_at TIMESTAMP WITH TIME ZONE,
+      first_briefing_at TIMESTAMP WITH TIME ZONE,
+      paywall_shown_at TIMESTAMP WITH TIME ZONE,
+      subscribed_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
+
+  // Subscriptions
+  await sql`
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status VARCHAR(20) NOT NULL DEFAULT 'inactive',
+      stripe_customer_id VARCHAR(255),
+      stripe_subscription_id VARCHAR(255),
+      current_period_end TIMESTAMP WITH TIME ZONE,
+      cancel_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
 }
