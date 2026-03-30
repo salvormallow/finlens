@@ -114,7 +114,7 @@ export async function uploadDocument(params: {
   // Upload to Vercel Blob
   const blob = await put(
     `staging/${userId}/${Date.now()}-${file.name}`,
-    new Blob([file.buffer], { type: file.type }),
+    new Blob([new Uint8Array(file.buffer)], { type: file.type }),
     { access: "private" }
   );
 
@@ -264,7 +264,7 @@ export async function ingestDocument(params: {
   // Upload to blob
   const blob = await put(
     `staging/${userId}/${Date.now()}-${fileName}`,
-    new Blob([buffer], { type: mimeType }),
+    new Blob([new Uint8Array(buffer)], { type: mimeType }),
     { access: "private" }
   );
 
